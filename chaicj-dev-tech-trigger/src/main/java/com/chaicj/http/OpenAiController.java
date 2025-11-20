@@ -1,17 +1,17 @@
 package com.chaicj.http;
 
 import com.chaicj.api.IAiService;
+import jakarta.annotation.Resource;
 import org.springframework.ai.chat.ChatResponse;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.SystemPromptTemplate;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.ollama.OllamaChatClient;
-import org.springframework.ai.ollama.api.OllamaOptions;
+import org.springframework.ai.openai.OpenAiChatClient;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.vectorstore.PgVectorStore;
 import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 
@@ -20,31 +20,44 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@RestController
+@RestController()
 @CrossOrigin("*")
-@RequestMapping("/api/v1/ollama")
-public class OllamaController implements IAiService {
+@RequestMapping("/api/v1/openai/")
+public class OpenAiController implements IAiService {
 
-    @Autowired
-    private OllamaChatClient ollamaChatClient;
-    @Autowired
+    @Resource
+    private OpenAiChatClient chatClient;
+    @Resource
     private PgVectorStore pgVectorStore;
 
-    @RequestMapping(value = "/generate", method = RequestMethod.GET)
+    @RequestMapping(value = "generate", method = RequestMethod.GET)
     @Override
     public ChatResponse generate(@RequestParam String model, @RequestParam String message) {
-        return ollamaChatClient.call(new Prompt(message, OllamaOptions.create().withModel(model)));
+        return chatClient.call(new Prompt(
+                message,
+                OpenAiChatOptions.builder()
+                        .withModel(model)
+                        .build()
+        ));
     }
 
-    @RequestMapping(value = "/generate_stream", method = RequestMethod.GET)
-    @Override
-    public Flux<ChatResponse> generateStream(String model, String message) {
-        return ollamaChatClient.stream(new Prompt(message, OllamaOptions.create().withModel(model)));
+    /**
+     * curl http://localhost:8090/api/v1/openai/generate_stream?model=gpt-4o&message=1+1
+     */
+    @RequestMapping(value = "generate_stream", method = RequestMethod.GET)
+    public Flux<ChatResponse> generateStream(@RequestParam String model, @RequestParam String message) {
+        return chatClient.stream(new Prompt(
+                message,
+                OpenAiChatOptions.builder()
+                        .withModel(model)
+                        .build()
+        ));
     }
 
     @RequestMapping(value = "generate_stream_rag", method = RequestMethod.GET)
     @Override
     public Flux<ChatResponse> generateStreamRag(@RequestParam String model, @RequestParam String ragTag, @RequestParam String message) {
+
         String SYSTEM_PROMPT = """
                 Use the information from the DOCUMENTS section to provide accurate answers but act as if you knew this information innately.
                 If unsure, simply state that you don't know.
@@ -66,10 +79,11 @@ public class OllamaController implements IAiService {
         messages.add(new UserMessage(message));
         messages.add(ragMessage);
 
-        return ollamaChatClient.stream(new Prompt(
+        return chatClient.stream(new Prompt(
                 messages,
-                OllamaOptions.create()
+                OpenAiChatOptions.builder()
                         .withModel(model)
+                        .build()
         ));
     }
 

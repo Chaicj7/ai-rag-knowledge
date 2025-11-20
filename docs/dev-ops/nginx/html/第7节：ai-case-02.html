@@ -121,7 +121,7 @@
                     formData.append('file', file);
                 });
 
-                const response = await fetch('http://localhost:8090/api/v1/rag/file/upload', {
+                const response = await fetch('http://localhost:8090/api/v1/rag/upload_file', {
                     method: 'POST',
                     body: formData
                 });
